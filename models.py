@@ -51,6 +51,7 @@ class UNetMid(nn.Module):
 
     def forward(self, x, skip_input):
         # print(x.shape)
+        # print('UNetMid forward: ', x.shape, skip_input.shape)
         x = torch.cat((x, skip_input), 1)
         x = self.model(x)
         x =  nn.functional.pad(x, (1,0,1,0,1,0))
@@ -71,11 +72,9 @@ class UNetUp(nn.Module):
         self.model = nn.Sequential(*layers)
 
     def forward(self, x, skip_input):
-        # print('new')
-        # print(x.shape)
-        # print(skip_input.shape)
+        # print('UNetUp forward: ', x.shape, skip_input.shape)
         x = self.model(x)
-        # print(x.shape)
+        # print('UNetUp forward after model: ', x.shape, skip_input.shape)
         x = torch.cat((x, skip_input), 1)
 
         return x

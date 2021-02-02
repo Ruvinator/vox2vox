@@ -98,14 +98,15 @@ def train():
     ])
 
     dataloader = DataLoader(
-        CTDataset("../../data/%s/train/" % opt.dataset_name, transforms_=transforms_),
+        CTDataset("./data/%s/train/" % opt.dataset_name, transforms_=transforms_),
         batch_size=opt.batch_size,
         shuffle=True,
         num_workers=opt.n_cpu,
     )
 
+    # TODO: Once we're using actual validation data, change this to reflect the data
     val_dataloader = DataLoader(
-        CTDataset("../../data/%s/test/" % opt.dataset_name, transforms_=transforms_),
+        CTDataset("./data/%s/train/" % opt.dataset_name, transforms_=transforms_),
         batch_size=1,
         shuffle=True,
         num_workers=1,
