@@ -25,9 +25,11 @@ class CTDataset(Dataset):
         #     2: t1gd: "T1-weighted with gadolinium contrast enhancement" (T1-Gd)
         #     3: T2w: "T2-weighted"
         image = nb.load(self.samples[idx]).get_fdata()[:dim_bound_xy, :dim_bound_xy, :dim_bound_z, 0]
+        image /= float(image.max()) # Normalize
 
         # Brain MRI labels are 3D as-is
         mask = nb.load(self.get_label_from_sample(self.samples[idx])).get_fdata()[:dim_bound_xy, :dim_bound_xy, :dim_bound_z]
+        mask /= float(mask.max()) # Normalize
 
         if self.transforms:
             image, mask = self.transforms(image), self.transforms(mask)

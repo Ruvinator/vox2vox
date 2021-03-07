@@ -8,3 +8,5 @@ urllib3
 scikit-image
 pyvista
 h5py
+dominate>=2.4.0
+visdom>=0.1.8.8

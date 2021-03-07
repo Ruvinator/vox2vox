@@ -25,7 +25,10 @@ import torch
 
 import h5py
 
+from util.visualizer import Visualizer
+
 def train():
+    np.set_printoptions(threshold=sys.maxsize)
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--epoch", type=int, default=0, help="epoch to start training from")
@@ -49,13 +52,22 @@ def train():
         "--sample_interval", type=int, default=1, help="interval between sampling of images from generators"
     )
     parser.add_argument("--checkpoint_interval", type=int, default=-1, help="interval between model checkpoints")
+    parser.add_argument('--checkpoints_dir', type=str, default='./saved_models', help='models are saved here')
+    parser.add_argument('--images_dir', type=str, default='./images', help='images are saved here')
+    parser.add_argument('--display_id', type=int, default=1, help='window id of the web display')
+    parser.add_argument('--display_server', type=str, default="http://localhost", help='visdom server of the web display')
+    parser.add_argument('--display_env', type=str, default='main', help='visdom display environment name (default is "main")')
+    parser.add_argument('--display_port', type=int, default=8097, help='visdom port of the web display')
+    parser.add_argument('--display_winsize', type=int, default=256, help='display window size for both visdom and HTML')
     opt = parser.parse_args()
     print(opt)
 
-    os.makedirs("images/%s" % opt.dataset_name, exist_ok=True)
-    os.makedirs("saved_models/%s" % opt.dataset_name, exist_ok=True)
+    os.makedirs(f"{opt.images_dir}/{opt.dataset_name}", exist_ok=True)
+    os.makedirs(f"{opt.checkpoints_dir}/{opt.dataset_name}", exist_ok=True)
 
     cuda = True if torch.cuda.is_available() else False
+
+    visualizer = Visualizer(opt) # Create visualizer to display and save training images
 
     # Loss functions
     criterion_GAN = torch.nn.MSELoss()
@@ -146,6 +158,8 @@ def train():
     prev_time = time.time()
     discriminator_update = 'False'
     for epoch in range(opt.epoch, opt.n_epochs):
+        visualizer.reset() # reset the visualizer: make sure results are saved once per epoch
+
         for i, batch in enumerate(dataloader):
 
             # Model inputs
@@ -236,11 +250,38 @@ def train():
 
             discriminator_update = 'False'
 
+            # --------------------------
+            #  Display images in visdom
+            # --------------------------
+            visuals = {}
+            vis_axis = 'z'
+            visuals['Real A'] = getSlice(real_A, vis_axis)
+            visuals['Real B'] = getSlice(real_B, vis_axis)
+            visuals['Fake B'] = getSlice(fake_B, vis_axis)
+            visualizer.display_current_results(visuals, epoch, False)
+
+            # --------------------------
+            #  Display losses in visdom
+            losses = {}
+            losses['D accuracy'] = float(d_total_acu)
+            losses['D loss'] = loss_D.item()
+            losses['G loss'] = loss_G.item()
+            visualizer.plot_current_losses(epoch, float(i) / len(dataloader), losses)
+
         if opt.checkpoint_interval != -1 and epoch % opt.checkpoint_interval == 0:
             # Save model checkpoints
             torch.save(generator.state_dict(), "saved_models/%s/generator_%d.pth" % (opt.dataset_name, epoch))
             torch.save(discriminator.state_dict(), "saved_models/%s/discriminator_%d.pth" % (opt.dataset_name, epoch))
 
+# TODO(igorruvinov) remove this when working on a cleaner solution
+# Temporary helper method for hacking together visdom with 3D training
+def getSlice(pytensor, plane='x'):
+    if plane == 'x':
+        return pytensor.cpu().detach().numpy()[:, :, pytensor.shape[2] // 2, :, :].reshape([pytensor.shape[3], pytensor.shape[4]])
+    elif plane == 'y':
+        return pytensor.cpu().detach().numpy()[:, :, :, pytensor.shape[3] // 2, :].reshape([pytensor.shape[2], pytensor.shape[4]])
+    elif plane == 'z':
+        return pytensor.cpu().detach().numpy()[:, :, :, :, pytensor.shape[4] // 2].reshape([pytensor.shape[2], pytensor.shape[3]])
 
 if __name__ == '__main__':
 
